@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        canvas { border: 1px solid black; }
+        #score { font-family: Arial, sans-serif; font-size: 24px; margin-top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="300" height="600"></canvas>
+    <div id="score">Score: 0</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const BLOCK_SIZE = 30;
+        const COLS = 10;
+        const ROWS = 20;
+        const colors = ["cyan", "blue", "orange", "yellow", "green", "red", "purple"];
+        
+        const shapes = [
+            [[1, 1, 1], [0, 1, 0]],  // T-vorm
+            [[1, 1], [1, 1]],        // O-vorm
+            [[1, 1, 0], [0, 1, 1]],  // S-vorm
+            [[0, 1, 1], [1, 1, 0]],  // Z-vorm
+            [[1, 1, 1, 1]],          // I-vorm
+            [[1, 1, 1], [1, 0, 0]],  // L-vorm
+            [[1, 1, 1], [0, 0, 1]]   // J-vorm
+        ];
+        
+        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+        let currentShape, currentPos, score;
+
+        function randomShape() {
+            const shapeIndex = Math.floor(Math.random() * shapes.length);
+            return shapes[shapeIndex];
+        }
+
+        function drawShape(shape, x, y, color) {
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        ctx.fillStyle = color;
+                        ctx.fillRect((x + c) * BLOCK_SIZE, (y + r) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                    }
+                }
+            }
+        }
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c]) {
+                        ctx.fillStyle = board[r][c];
+                        ctx.fillRect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                    }
+                }
+            }
+        }
+
+        function placeShape() {
+            for (let r = 0; r < currentShape.length; r++) {
+                for (let c = 0; c < currentShape[r].length; c++) {
+                    if (currentShape[r][c]) {
+                        board[currentPos.y + r][currentPos.x + c] = colors[Math.floor(Math.random() * colors.length)];
+                    }
+                }
+            }
+
+            checkFullRows();
+            currentShape = null;
+        }
+
+        function checkFullRows() {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r].every(cell => cell !== null)) {
+                    board.splice(r, 1);
+                    board.unshift(Array(COLS).fill(null));
+                    score += 10;
+                    document.getElementById("score").textContent = "Score: " + score;
+                }
+            }
+        }
+
+        function moveShape(dir) {
+            if (dir === "left") {
+                if (!collides(currentShape, currentPos.x - 1, currentPos.y)) currentPos.x--;
+            } else if (dir === "right") {
+                if (!collides(currentShape, currentPos.x + 1, currentPos.y)) currentPos.x++;
+            } else if (dir === "down") {
+                if (!collides(currentShape, currentPos.x, currentPos.y + 1)) {
+                    currentPos.y++;
+                } else {
+                    placeShape();
+                    currentShape = randomShape();
+                    currentPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
+                    if (collides(currentShape, currentPos.x, currentPos.y)) {
+                        alert("Game Over!");
+                        resetGame();
+                    }
+                }
+            }
+        }
+
+        function collides(shape, x, y) {
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        if (x + c < 0 || x + c >= COLS || y + r >= ROWS || board[y + r][x + c] !== null) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function gameLoop() {
+            drawBoard();
+            if (!currentShape) {
+                currentShape = randomShape();
+                currentPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
+            }
+            drawShape(currentShape, currentPos.x, currentPos.y, colors[Math.floor(Math.random() * colors.length)]);
+            moveShape("down");
+            setTimeout(gameLoop, 500);
+        }
+
+        function resetGame() {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+            score = 0;
+            document.getElementById("score").textContent = "Score: " + score;
+            currentShape = null;
+            currentPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
+            gameLoop();
+        }
+
+        // Besturing via pijltjestoetsen
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "ArrowLeft") {
+                moveShape("left");
+            } else if (event.key === "ArrowRight") {
+                moveShape("right");
+            } else if (event.key === "ArrowDown") {
+                moveShape("down");
+            } else if (event.key === "ArrowUp") {
+                // Draai de vorm als je wilt
+                currentShape = rotateShape(currentShape);
+            }
+        });
+
+        function rotateShape(shape) {
+            return shape[0].map((_, index) => shape.map(row => row[index])).reverse();
+        }
+
+        resetGame();
+    </script>
+</body>
+</html>
